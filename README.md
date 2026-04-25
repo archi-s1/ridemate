@@ -11,14 +11,14 @@ FULL TEST FLOW (AFTER REGISTERING)-
 
 
 COMMAND TO COMPILE AND RUN - 
-cd ridemate 
-make 
-mkdir data 
-cd shim 
-npm install
-cd ..
-node shim/server.js
-run - ridemate/frontend/index.html
+-> cd ridemate 
+-> make 
+-> mkdir data 
+-> cd shim 
+-> npm install
+-> cd ..
+-> node shim/server.js
+-> run - ridemate/frontend/index.html
 
 
 
