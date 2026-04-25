@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RideMate — Drivers</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/global.css">
+<style>
+.pulse { animation: pulse 2s ease-in-out infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+.online-dot { display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--green); margin-right:5px; box-shadow:0 0 5px var(--green); }
+.offline-dot{ display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--muted2); margin-right:5px; }
+
+.add-driver-form { display:grid; grid-template-columns:2fr 1fr 1fr auto; gap:10px; align-items:end; }
+@media (max-width:800px) { .add-driver-form { grid-template-columns:1fr 1fr; } }
+
+.driver-row td { transition:background .15s; }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- Topbar -->
+  <header class="topbar">
+    <div class="topbar-logo">Ride<span>Mate</span></div>
+    <div class="topbar-right">
+      <span class="algo-badge" id="algo-badge">ALGO: —</span>
+      <span class="user-name" id="topbar-name">—</span>
+    </div>
+  </header>
+
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="nav-section-label" id="nav-role-label">Passenger</div>
+    <a class="nav-link" href="dashboard.html" id="nav-home"><span class="nav-icon">🏠</span> Dashboard</a>
+    <a class="nav-link" href="map.html"><span class="nav-icon">🗺️</span> City Map</a>
+    <a class="nav-link active" href="admin.html"><span class="nav-icon">👥</span> Drivers</a>
+    <div class="nav-section-label">Account</div>
+    <a class="nav-link" href="history.html"><span class="nav-icon">📋</span> Ride History</a>
+    <div class="sidebar-footer">
+      <button class="logout-btn" onclick="doLogout()">Sign Out</button>
+    </div>
+  </nav>
+
+  <!-- Main -->
+  <main class="main">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Driver Registry</div>
+        <div class="page-sub">Manage drivers · toggle availability · view stats</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="loadAll()">↻ Refresh</button>
+    </div>
+
+    <!-- Stats row -->
+    <div class="stat-row" style="margin-bottom:24px;">
+      <div class="stat-tile green-top">
+        <div class="stat-val" id="s-online">—</div>
+        <div class="stat-label">Online</div>
+      </div>
+      <div class="stat-tile red-top">
+        <div class="stat-val" id="s-offline">—</div>
+        <div class="stat-label">Offline</div>
+      </div>
+      <div class="stat-tile">
+        <div class="stat-val" id="s-total">—</div>
+        <div class="stat-label">Total Drivers</div>
+      </div>
+      <div class="stat-tile blue-top">
+        <div class="stat-val" id="s-rides">—</div>
+        <div class="stat-label">Ongoing Rides</div>
+      </div>
+    </div>
+
+    <!-- Add driver form -->
+    <div class="card" style="margin-bottom:24px;">
+      <div class="card-title">Add New Driver</div>
+      <div class="add-driver-form">
+        <div class="form-group" style="margin:0;">
+          <label class="label">Name</label>
+          <input id="new-name" class="input" placeholder="Driver name">
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label class="label">Start Location</label>
+          <select id="new-loc" class="input"></select>
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label class="label">Vehicle</label>
+          <select id="new-vt" class="input">
+            <option value="moto">🛵 Moto</option>
+            <option value="auto">🛺 Auto</option>
+            <option value="mini" selected>🚗 Mini</option>
+            <option value="sedan">🚙 Sedan</option>
+          </select>
+        </div>
+        <div style="padding-bottom:1px;">
+          <button class="btn btn-primary" id="add-btn" onclick="addDriver()">Add Driver</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Drivers table -->
+    <div class="card">
+      <div class="card-title">All Drivers</div>
+      <div class="table-wrap" id="drivers-table">
+        <div class="empty"><div class="spinner"></div></div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+requireAuth();
+const user = getUser();
+document.getElementById('topbar-name').textContent = user?.name ?? '—';
+
+const isDriver = user?.role === 'driver';
+if (isDriver) {
+  document.getElementById('nav-home').href = 'driver.html';
+  document.getElementById('nav-role-label').textContent = 'Driver';
+}
+
+// Populate location select
+const locSel = document.getElementById('new-loc');
+LOCATIONS.forEach((l,i) => {
+  const o = document.createElement('option');
+  o.value = i; o.textContent = `${i} — ${l}`;
+  locSel.appendChild(o);
+});
+
+// ── Load all data ─────────────────────────────────────────────────────────
+async function loadAll() {
+  const [driversR, ongoingR, algoR] = await Promise.all([
+    Drivers.all(),
+    Rides.ongoing(),
+    Meta.algorithm(),
+  ]);
+
+  document.getElementById('algo-badge').textContent = `ALGO: ${algoR.algorithm ?? '—'}`;
+
+  if (!driversR.ok) { toast('Failed to load drivers', 'error'); return; }
+  const drivers = driversR.drivers ?? [];
+  const online  = drivers.filter(d => d.available).length;
+
+  document.getElementById('s-total').textContent   = drivers.length;
+  document.getElementById('s-online').textContent  = online;
+  document.getElementById('s-offline').textContent = drivers.length - online;
+  document.getElementById('s-rides').textContent   = ongoingR.rides?.length ?? 0;
+
+  renderTable(drivers);
+}
+
+// ── Render table ──────────────────────────────────────────────────────────
+function renderTable(drivers) {
+  const el = document.getElementById('drivers-table');
+  if (!drivers.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">🚗</div><div class="empty-text">No drivers registered</div></div>';
+    return;
+  }
+
+  el.innerHTML = `
+    <table>
+      <thead>
+        <tr>
+          <th>Status</th>
+          <th>ID</th>
+          <th>Name</th>
+          <th>Vehicle</th>
+          <th>Location</th>
+          <th>Earnings</th>
+          <th>Rating</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${drivers.map(d => {
+          const vm = VEHICLE_META[d.vehicleType] ?? { icon:'🚗', label:d.vehicleType };
+          return `
+            <tr class="driver-row" id="dr-${d.id}">
+              <td>
+                <span class="${d.available ? 'online-dot pulse' : 'offline-dot'}"></span>
+                <span class="mono" style="font-size:11px;">${d.available ? 'Online' : 'Offline'}</span>
+              </td>
+              <td class="mono muted">#${d.id}</td>
+              <td>${d.name}</td>
+              <td><span class="vchip">${vm.icon} ${vm.label}</span></td>
+              <td style="font-size:12px;">${locationName(d.location)}</td>
+              <td class="mono accent">${formatFare(d.earnings)}</td>
+              <td>
+                <span class="stars">${stars(d.rating)}</span>
+                <span class="mono muted" style="font-size:11px;margin-left:4px;">${Number(d.rating).toFixed(1)}</span>
+              </td>
+              <td>
+                <div style="display:flex;gap:6px;">
+                  <button class="btn btn-ghost btn-sm" onclick="toggleDriver(${d.id})">
+                    ${d.available ? 'Go Offline' : 'Go Online'}
+                  </button>
+                  <button class="btn btn-danger btn-sm" onclick="removeDriver(${d.id})">Remove</button>
+                </div>
+              </td>
+            </tr>
+          `;
+        }).join('')}
+      </tbody>
+    </table>
+  `;
+}
+
+// ── Add driver ────────────────────────────────────────────────────────────
+async function addDriver() {
+  const name = document.getElementById('new-name').value.trim();
+  const loc  = parseInt(document.getElementById('new-loc').value);
+  const vt   = document.getElementById('new-vt').value;
+  if (!name) { toast('Driver name required', 'error'); return; }
+
+  const btn = document.getElementById('add-btn');
+  setLoading(btn, true);
+  const r = await Drivers.add(name, loc, vt);
+  setLoading(btn, false);
+
+  if (!r.ok) { toast(r.msg, 'error'); return; }
+  toast(`Driver #${r.id} added!`, 'success');
+  document.getElementById('new-name').value = '';
+  loadAll();
+}
+
+// ── Toggle availability ───────────────────────────────────────────────────
+async function toggleDriver(id) {
+  const r = await Drivers.toggle(id);
+  if (!r.ok) { toast(r.msg, 'error'); return; }
+  toast('Availability updated', 'info');
+  loadAll();
+}
+
+// ── Remove driver ─────────────────────────────────────────────────────────
+async function removeDriver(id) {
+  if (!confirm(`Remove driver #${id}? This cannot be undone.`)) return;
+  const r = await Drivers.remove(id);
+  if (!r.ok) { toast(r.msg, 'error'); return; }
+  toast(`Driver #${id} removed`, 'info');
+  loadAll();
+}
+
+async function doLogout() {
+  await Auth.logout();
+  clearAuth();
+  window.location.href = 'index.html';
+}
+
+loadAll();
+// Auto-refresh every 10s
+setInterval(loadAll, 10000);
+</script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+[
+  {
+    "email": "youngblood@gmail.com",
+    "name": "tapi",
+    "passwordHash": "000000005b43f292",
+    "role": "driver",
+    "userId": 2
+  },
+  {
+    "email": "hello@gmail.com",
+    "name": "Archi",
+    "passwordHash": "000000000c47b2b4",
+    "role": "passenger",
+    "userId": 1
+  }
+]

@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RideMate — Sign In</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="js/../css/global.css">
+<style>
+body { display:flex; align-items:center; justify-content:center; min-height:100vh; }
+
+.auth-wrap {
+  display:grid; grid-template-columns:1fr 1fr; width:900px; max-width:98vw;
+  border:1px solid var(--border); background:var(--surface);
+  box-shadow: 0 0 80px rgba(0,0,0,.6);
+}
+
+/* left panel */
+.auth-brand {
+  background:var(--bg);
+  padding:60px 48px;
+  display:flex; flex-direction:column; justify-content:space-between;
+  border-right:1px solid var(--border);
+  position:relative; overflow:hidden;
+}
+.auth-brand::before {
+  content:'';
+  position:absolute; inset:0;
+  background: radial-gradient(ellipse 120% 80% at 20% 110%, rgba(245,158,11,.08) 0%, transparent 65%);
+  pointer-events:none;
+}
+.brand-logo { font-family:var(--mono); font-size:11px; color:var(--muted); letter-spacing:.2em; text-transform:uppercase; }
+.brand-title { font-family:var(--mono); font-size:42px; font-weight:700; line-height:1; color:var(--text); margin:auto 0; }
+.brand-title span { color:var(--accent); }
+.brand-tagline { font-size:13px; color:var(--muted); line-height:1.6; max-width:240px; }
+.stat-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:40px; }
+.stat-box { padding:14px 16px; border:1px solid var(--border); }
+.stat-num  { font-family:var(--mono); font-size:22px; font-weight:700; color:var(--accent); }
+.stat-lbl  { font-size:11px; color:var(--muted); margin-top:4px; letter-spacing:.05em; text-transform:uppercase; }
+
+/* right panel */
+.auth-form-panel { padding:60px 48px; }
+.tab-row { display:flex; gap:0; margin-bottom:36px; border-bottom:1px solid var(--border); }
+.tab-btn {
+  font-family:var(--mono); font-size:12px; letter-spacing:.1em; text-transform:uppercase;
+  padding:10px 20px; background:none; border:none; color:var(--muted); cursor:pointer;
+  border-bottom:2px solid transparent; margin-bottom:-1px; transition:all .2s;
+}
+.tab-btn.active { color:var(--accent); border-bottom-color:var(--accent); }
+
+.form-title { font-family:var(--mono); font-size:18px; color:var(--text); margin-bottom:28px; }
+
+.form-group { margin-bottom:18px; }
+.form-label { display:block; font-size:11px; color:var(--muted); letter-spacing:.08em; text-transform:uppercase; margin-bottom:6px; }
+
+.role-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.role-card {
+  border:1px solid var(--border); padding:14px 16px; cursor:pointer;
+  transition:all .2s; background:var(--bg);
+}
+.role-card:hover { border-color:var(--muted); }
+.role-card.selected { border-color:var(--accent); background:rgba(245,158,11,.06); }
+.role-card input { display:none; }
+.role-icon { font-size:20px; margin-bottom:6px; }
+.role-name { font-family:var(--mono); font-size:12px; color:var(--text); }
+.role-desc { font-size:11px; color:var(--muted); margin-top:3px; }
+
+#driver-fields { margin-top:16px; display:none; }
+#driver-fields.show { display:block; }
+
+.vt-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+.vt-card {
+  border:1px solid var(--border); padding:10px 8px; text-align:center; cursor:pointer;
+  transition:all .2s; background:var(--bg);
+}
+.vt-card:hover { border-color:var(--muted); }
+.vt-card.selected { border-color:var(--accent); background:rgba(245,158,11,.06); }
+.vt-card input { display:none; }
+.vt-icon { font-size:18px; }
+.vt-name { font-size:10px; color:var(--muted); margin-top:4px; font-family:var(--mono); }
+
+.submit-btn {
+  width:100%; padding:14px; background:var(--accent); color:#000;
+  font-family:var(--mono); font-size:13px; font-weight:700; letter-spacing:.1em;
+  text-transform:uppercase; border:none; cursor:pointer; margin-top:8px;
+  transition:all .2s;
+}
+.submit-btn:hover { background:#f59e0b; transform:translateY(-1px); }
+.submit-btn:disabled { opacity:.5; cursor:not-allowed; transform:none; }
+
+.err-msg { font-size:12px; color:#ef4444; margin-top:10px; font-family:var(--mono); min-height:18px; }
+</style>
+</head>
+<body>
+
+<div class="auth-wrap">
+  <!-- brand panel -->
+  <div class="auth-brand">
+    <div class="brand-logo">v1.0 / Bangalore</div>
+    <div>
+      <div class="brand-title">Ride<span>Mate</span></div>
+      <div class="brand-tagline" style="margin-top:16px;">Dispatch platform powered by Dijkstra, BFS, and adaptive routing.</div>
+      <div class="stat-grid">
+        <div class="stat-box"><div class="stat-num">20</div><div class="stat-lbl">City Nodes</div></div>
+        <div class="stat-box"><div class="stat-num">O(1)</div><div class="stat-lbl">Fare Lookup</div></div>
+        <div class="stat-box"><div class="stat-num">4</div><div class="stat-lbl">Vehicle Types</div></div>
+        <div class="stat-box"><div class="stat-num">BFS+</div><div class="stat-lbl">Adaptive Algo</div></div>
+      </div>
+    </div>
+    <div class="brand-tagline">Built on C++ core with custom data structures.</div>
+  </div>
+
+  <!-- form panel -->
+  <div class="auth-form-panel">
+    <div class="tab-row">
+      <button class="tab-btn active" onclick="switchTab('login')">Sign In</button>
+      <button class="tab-btn" onclick="switchTab('register')">Register</button>
+    </div>
+
+    <!-- LOGIN -->
+    <div id="tab-login">
+      <div class="form-title">Welcome back</div>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input id="l-email" type="email" class="input" placeholder="you@example.com">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input id="l-pass" type="password" class="input" placeholder="••••••••">
+      </div>
+      <div class="err-msg" id="l-err"></div>
+      <button class="submit-btn" id="l-btn" onclick="doLogin()">Sign In →</button>
+    </div>
+
+    <!-- REGISTER -->
+    <div id="tab-register" style="display:none">
+      <div class="form-title">Create account</div>
+      <div class="form-group">
+        <label class="form-label">Full Name</label>
+        <input id="r-name" type="text" class="input" placeholder="Your name">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input id="r-email" type="email" class="input" placeholder="you@example.com">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input id="r-pass" type="password" class="input" placeholder="Min. 4 characters">
+      </div>
+      <div class="form-group">
+        <label class="form-label">I am a</label>
+        <div class="role-grid">
+          <label class="role-card selected" onclick="selectRole('passenger',this)">
+            <input type="radio" name="role" value="passenger" checked>
+            <div class="role-icon">🧑</div>
+            <div class="role-name">Passenger</div>
+            <div class="role-desc">Book rides</div>
+          </label>
+          <label class="role-card" onclick="selectRole('driver',this)">
+            <input type="radio" name="role" value="driver">
+            <div class="role-icon">🚗</div>
+            <div class="role-name">Driver</div>
+            <div class="role-desc">Accept rides</div>
+          </label>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Start Location</label>
+        <select id="r-loc" class="input">
+          <!-- filled by JS -->
+        </select>
+      </div>
+      <div id="driver-fields">
+        <div class="form-group">
+          <label class="form-label">Vehicle Type</label>
+          <div class="vt-grid" id="vt-grid"></div>
+        </div>
+      </div>
+      <div class="err-msg" id="r-err"></div>
+      <button class="submit-btn" id="r-btn" onclick="doRegister()">Create Account →</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+// Redirect if already logged in
+if (isLoggedIn()) {
+  const u = getUser();
+  window.location.href = u.role === 'driver' ? 'driver.html' : 'dashboard.html';
+}
+
+// Populate location select
+const locSel = document.getElementById('r-loc');
+LOCATIONS.forEach((l,i) => {
+  const o = document.createElement('option');
+  o.value = i; o.textContent = `${i} — ${l}`;
+  locSel.appendChild(o);
+});
+
+// Populate vehicle type cards
+let selectedVt = 'mini';
+const vtGrid = document.getElementById('vt-grid');
+Object.entries(VEHICLE_META).forEach(([vt, m]) => {
+  const card = document.createElement('label');
+  card.className = 'vt-card' + (vt === 'mini' ? ' selected' : '');
+  card.innerHTML = `<input type="radio" name="vt" value="${vt}" ${vt==='mini'?'checked':''}><div class="vt-icon">${m.icon}</div><div class="vt-name">${m.label}</div>`;
+  card.onclick = () => {
+    selectedVt = vt;
+    vtGrid.querySelectorAll('.vt-card').forEach(c => c.classList.remove('selected'));
+    card.classList.add('selected');
+  };
+  vtGrid.appendChild(card);
+});
+
+function switchTab(tab) {
+  document.getElementById('tab-login').style.display    = tab==='login'    ? '' : 'none';
+  document.getElementById('tab-register').style.display = tab==='register' ? '' : 'none';
+  document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', (i===0)===(tab==='login')));
+}
+
+function selectRole(role, el) {
+  document.querySelectorAll('.role-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('driver-fields').classList.toggle('show', role === 'driver');
+}
+
+async function doLogin() {
+  const email = document.getElementById('l-email').value.trim();
+  const pass  = document.getElementById('l-pass').value;
+  const btn   = document.getElementById('l-btn');
+  const err   = document.getElementById('l-err');
+  err.textContent = '';
+  if (!email || !pass) { err.textContent = 'Email and password required.'; return; }
+  setLoading(btn, true);
+  const r = await Auth.login(email, pass);
+  setLoading(btn, false);
+  if (!r.ok) { err.textContent = r.msg; return; }
+  saveAuth(r.token, r.userId, r.role, email.split('@')[0]);
+  window.location.href = r.role === 'driver' ? 'driver.html' : 'dashboard.html';
+}
+
+async function doRegister() {
+  const name  = document.getElementById('r-name').value.trim();
+  const email = document.getElementById('r-email').value.trim();
+  const pass  = document.getElementById('r-pass').value;
+  const role  = document.querySelector('input[name="role"]:checked').value;
+  const loc   = parseInt(document.getElementById('r-loc').value);
+  const btn   = document.getElementById('r-btn');
+  const err   = document.getElementById('r-err');
+  err.textContent = '';
+  if (!name || !email || !pass) { err.textContent = 'All fields required.'; return; }
+  setLoading(btn, true);
+  const r = await Auth.register(name, email, pass, role, loc, selectedVt);
+  setLoading(btn, false);
+  if (!r.ok) { err.textContent = r.msg; return; }
+  // Auto-login after register
+  const lr = await Auth.login(email, pass);
+  if (!lr.ok) { switchTab('login'); toast('Registered! Please sign in.', 'success'); return; }
+  saveAuth(lr.token, lr.userId, lr.role, name);
+  window.location.href = lr.role === 'driver' ? 'driver.html' : 'dashboard.html';
+}
+
+// Enter key support
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  if (!document.getElementById('tab-login').hidden &&
+      document.getElementById('tab-login').style.display !== 'none') doLogin();
+  else doRegister();
+});
+</script>
+</body>
+</html>

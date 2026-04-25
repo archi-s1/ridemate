@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RideMate — Driver Panel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/global.css">
+<style>
+.status-dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; }
+.status-dot.online  { background:var(--green); box-shadow:0 0 6px var(--green); }
+.status-dot.offline { background:var(--muted2); }
+
+.ride-panel {
+  border:1px solid var(--border);
+  background:var(--bg);
+  padding:20px 24px;
+  margin-bottom:16px;
+}
+.ride-panel.active { border-color:var(--green); background:rgba(34,197,94,.04); }
+.ride-panel.pending { border-color:var(--accent); background:rgba(217,119,6,.04); }
+
+.panel-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+.panel-id { font-family:var(--mono); font-size:11px; color:var(--muted); }
+
+.info-row { display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--border); font-size:13px; }
+.info-row:last-of-type { border:none; }
+.info-key { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; }
+
+.star-input { display:flex; gap:6px; margin-top:4px; }
+.star-input span { font-size:24px; cursor:pointer; color:var(--muted2); transition:color .15s; }
+.star-input span.on { color:var(--accent); }
+
+.earnings-big { font-family:var(--mono); font-size:36px; font-weight:700; color:var(--accent); }
+
+.section-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- Topbar -->
+  <header class="topbar">
+    <div class="topbar-logo">Ride<span>Mate</span></div>
+    <div class="topbar-right">
+      <span class="algo-badge" id="algo-badge">ALGO: —</span>
+      <span id="online-indicator" style="font-size:13px;">
+        <span class="status-dot offline" id="status-dot"></span>
+        <span id="status-label">Offline</span>
+      </span>
+      <span class="user-name" id="topbar-name">—</span>
+    </div>
+  </header>
+
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="nav-section-label">Driver</div>
+    <a class="nav-link active" href="driver.html"><span class="nav-icon">🚗</span> Dashboard</a>
+    <a class="nav-link" href="map.html"><span class="nav-icon">🗺️</span> City Map</a>
+    <div class="nav-section-label">Account</div>
+    <a class="nav-link" href="admin.html"><span class="nav-icon">👥</span> Drivers</a>
+    <a class="nav-link" href="history.html"><span class="nav-icon">📋</span> Ride History</a>
+    <div class="sidebar-footer">
+      <button class="logout-btn" onclick="doLogout()">Sign Out</button>
+    </div>
+  </nav>
+
+  <!-- Main -->
+  <main class="main">
+
+    <!-- Stats -->
+    <div class="stat-row">
+      <div class="stat-tile green-top">
+        <div class="stat-val" id="stat-earn">₹0</div>
+        <div class="stat-label">Total Earnings</div>
+      </div>
+      <div class="stat-tile">
+        <div class="stat-val" id="stat-rating">—</div>
+        <div class="stat-label">Avg Rating</div>
+        <div class="stat-sub stars" id="stat-stars">☆☆☆☆☆</div>
+      </div>
+      <div class="stat-tile blue-top">
+        <div class="stat-val" id="stat-rides">0</div>
+        <div class="stat-label">Completed Rides</div>
+      </div>
+      <div class="stat-tile">
+        <div class="stat-val mono accent" id="stat-loc">—</div>
+        <div class="stat-label">Current Location</div>
+      </div>
+    </div>
+
+    <div class="section-grid">
+
+      <!-- Left: Controls -->
+      <div>
+        <!-- Online toggle -->
+        <div class="card" style="margin-bottom:20px;">
+          <div class="card-title">Availability</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <div>
+              <div style="font-size:14px;" id="avail-text">You are currently <strong>offline</strong></div>
+              <div class="muted" style="font-size:12px;margin-top:4px;">Toggle to receive ride requests</div>
+            </div>
+            <button class="btn btn-ghost" id="toggle-btn" onclick="toggleAvail()">Go Online</button>
+          </div>
+        </div>
+
+        <!-- Pending rides queue -->
+        <div class="card" style="margin-bottom:20px;">
+          <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+            <span>Pending Requests</span>
+            <button class="btn btn-ghost btn-sm" onclick="loadPending()">↻ Refresh</button>
+          </div>
+          <div id="pending-list">
+            <div class="empty"><div class="empty-icon">⏳</div><div class="empty-text">No pending requests</div></div>
+          </div>
+          <button class="btn btn-primary" style="width:100%;margin-top:14px;" id="assign-btn" onclick="assignNext()">
+            Assign Next Ride →
+          </button>
+        </div>
+
+        <!-- Active ride -->
+        <div class="card">
+          <div class="card-title">Active Ride</div>
+          <div id="active-ride-body">
+            <div class="empty"><div class="empty-icon">🛣️</div><div class="empty-text">No active ride</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: History -->
+      <div>
+        <div class="card">
+          <div class="card-title">Completed Rides</div>
+          <div id="history-list">
+            <div class="empty"><div class="empty-icon">📋</div><div class="empty-text">No completed rides yet</div></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+requireRole('driver');
+
+const user = getUser();
+document.getElementById('topbar-name').textContent = user?.name ?? '—';
+
+let driverInfo  = null;
+let activeRide  = null;
+let currentRating = 5;
+
+// ── Load driver info ──────────────────────────────────────────────────────
+async function loadDriverInfo() {
+  const r = await Drivers.all();
+  if (!r.ok) return;
+  driverInfo = r.drivers?.find(d => d.id === user.userId) ?? null;
+  if (!driverInfo) return;
+
+  document.getElementById('stat-earn').textContent   = formatFare(driverInfo.earnings);
+  document.getElementById('stat-rating').textContent = Number(driverInfo.rating).toFixed(1);
+  document.getElementById('stat-stars').textContent  = stars(driverInfo.rating);
+  document.getElementById('stat-loc').textContent    = locationName(driverInfo.location).split(' ')[0];
+
+  const online = driverInfo.available;
+  document.getElementById('status-dot').className   = `status-dot ${online ? 'online' : 'offline'}`;
+  document.getElementById('status-label').textContent = online ? 'Online' : 'Offline';
+  document.getElementById('avail-text').innerHTML   = `You are currently <strong>${online ? 'online' : 'offline'}</strong>`;
+  document.getElementById('toggle-btn').textContent = online ? 'Go Offline' : 'Go Online';
+  document.getElementById('toggle-btn').className   = online ? 'btn btn-danger' : 'btn btn-green';
+
+  const algoR = await Meta.algorithm();
+  document.getElementById('algo-badge').textContent = `ALGO: ${algoR.algorithm ?? '—'}`;
+}
+
+// ── Load completed ride history ───────────────────────────────────────────
+async function loadHistory() {
+  const r = await Drivers.history(user.userId);
+  if (!r.ok) return;
+  const rides = r.rides ?? [];
+  document.getElementById('stat-rides').textContent = rides.length;
+
+  const el = document.getElementById('history-list');
+  if (!rides.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">No completed rides yet</div></div>';
+    return;
+  }
+  el.innerHTML = `
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>#</th><th>Route</th><th>Type</th><th>Fare</th></tr></thead>
+        <tbody>
+          ${rides.map(r => `
+            <tr>
+              <td class="mono muted">${r.rideId}</td>
+              <td style="font-size:12px;">${locationName(r.pickup).split(' ')[0]} → ${locationName(r.drop).split(' ')[0]}</td>
+              <td><span class="vchip">${VEHICLE_META[r.rideType]?.icon ?? '🚗'} ${VEHICLE_META[r.rideType]?.label ?? r.rideType}</span></td>
+              <td class="mono accent">${formatFare(r.fare)}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+// ── Load pending requests ─────────────────────────────────────────────────
+async function loadPending() {
+  const r = await Rides.ongoing();
+  const el = document.getElementById('pending-list');
+
+  // Show rides that are assigned to this driver (ongoing) or just requested
+  const myRide = r.rides?.find(ride => ride.driverId === user.userId);
+  if (myRide) { activeRide = myRide; renderActiveRide(myRide); }
+
+  // Show requested (unassigned) count
+  const requested = r.rides?.filter(ride => ride.status === 'requested') ?? [];
+  if (!requested.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">⏳</div><div class="empty-text">No pending requests</div></div>';
+    return;
+  }
+  el.innerHTML = requested.slice(0,3).map(ride => `
+    <div class="ride-panel pending fade-in">
+      <div class="panel-header">
+        <span class="panel-id">RIDE #${ride.rideId}</span>
+        <span class="badge badge-amber">Requested</span>
+      </div>
+      <div class="info-row">
+        <span class="info-key">Route</span>
+        <span>${locationName(ride.pickup)} → ${locationName(ride.drop)}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-key">Vehicle</span>
+        <span class="vchip">${VEHICLE_META[ride.rideType]?.icon ?? '🚗'} ${VEHICLE_META[ride.rideType]?.label ?? ride.rideType}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-key">Fare</span>
+        <span class="mono accent">${formatFare(ride.fare)}</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ── Assign next ride ──────────────────────────────────────────────────────
+async function assignNext() {
+  const btn = document.getElementById('assign-btn');
+  setLoading(btn, true);
+  const r = await Rides.assign();
+  setLoading(btn, false);
+  if (!r.ok) { toast(r.msg, 'error'); return; }
+  toast('Ride assigned to nearest driver!', 'success');
+  await loadPending();
+  await loadDriverInfo();
+}
+
+// ── Render active ride ────────────────────────────────────────────────────
+function renderActiveRide(ride) {
+  if (!ride) {
+    document.getElementById('active-ride-body').innerHTML =
+      '<div class="empty"><div class="empty-icon">🛣️</div><div class="empty-text">No active ride</div></div>';
+    return;
+  }
+  document.getElementById('active-ride-body').innerHTML = `
+    <div class="ride-panel active fade-in" style="margin:0;border:none;padding:0;background:none;">
+      <div class="info-row">
+        <span class="info-key">Ride #</span>
+        <span class="mono">${ride.rideId}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-key">Passenger</span>
+        <span>#${ride.passengerId}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-key">Route</span>
+        <span>${locationName(ride.pickup)} → ${locationName(ride.drop)}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-key">Vehicle</span>
+        <span class="vchip">${VEHICLE_META[ride.rideType]?.icon ?? '🚗'} ${VEHICLE_META[ride.rideType]?.label ?? ride.rideType}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-key">Fare</span>
+        <span class="mono accent" style="font-size:18px;">${formatFare(ride.fare)}</span>
+      </div>
+      <div style="margin-top:16px;">
+        <div class="label">Rate this passenger</div>
+        <div class="star-input" id="star-input">
+          ${[1,2,3,4,5].map(i => `<span onclick="setRating(${i})" class="${i<=currentRating?'on':''}">★</span>`).join('')}
+        </div>
+      </div>
+      <button class="btn btn-green" style="width:100%;margin-top:14px;" id="complete-btn" onclick="completeRide(${ride.rideId})">
+        Complete Ride ✓
+      </button>
+    </div>
+  `;
+}
+
+function setRating(n) {
+  currentRating = n;
+  const spans = document.querySelectorAll('#star-input span');
+  spans.forEach((s, i) => s.classList.toggle('on', i < n));
+}
+
+async function completeRide(rideId) {
+  const btn = document.getElementById('complete-btn');
+  setLoading(btn, true);
+  const r = await Rides.complete(rideId, currentRating);
+  setLoading(btn, false);
+  if (!r.ok) { toast(r.msg, 'error'); return; }
+  toast(`Ride #${rideId} completed! Earned ${formatFare(r.fare ?? 0)}`, 'success');
+  activeRide = null;
+  renderActiveRide(null);
+  await loadDriverInfo();
+  await loadHistory();
+}
+
+// ── Toggle availability ───────────────────────────────────────────────────
+async function toggleAvail() {
+  const btn = document.getElementById('toggle-btn');
+  setLoading(btn, true);
+  const r = await Drivers.toggle(user.userId);
+  setLoading(btn, false);
+  if (!r.ok) { toast(r.msg, 'error'); return; }
+  await loadDriverInfo();
+}
+
+// ── Logout ────────────────────────────────────────────────────────────────
+async function doLogout() {
+  await Auth.logout();
+  clearAuth();
+  window.location.href = 'index.html';
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+loadDriverInfo();
+loadHistory();
+loadPending();
+
+// Poll every 8s for new ride requests
+setInterval(loadPending, 8000);
+</script>
+</body>
+</html>

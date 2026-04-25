@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RideMate — History</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/global.css">
+<style>
+.history-tabs { display:flex; gap:0; border-bottom:1px solid var(--border); margin-bottom:24px; }
+.htab {
+  font-family:var(--mono); font-size:11px; letter-spacing:.08em; text-transform:uppercase;
+  padding:10px 20px; background:none; border:none; color:var(--muted); cursor:pointer;
+  border-bottom:2px solid transparent; margin-bottom:-1px; transition:all .18s;
+}
+.htab.active { color:var(--accent); border-bottom-color:var(--accent); }
+
+.ride-card {
+  border:1px solid var(--border);
+  background:var(--surface);
+  padding:20px 24px;
+  margin-bottom:12px;
+  transition:border-color .2s;
+  animation: fadeIn .25s ease both;
+}
+.ride-card:hover { border-color:var(--border2); }
+.ride-card-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+.ride-card-id { font-family:var(--mono); font-size:11px; color:var(--muted); }
+.ride-card-fare { font-family:var(--mono); font-size:20px; font-weight:700; color:var(--accent); }
+
+.ride-meta { display:grid; grid-template-columns:repeat(3, 1fr); gap:12px; }
+.meta-block { }
+.meta-key { font-size:10px; color:var(--muted2); text-transform:uppercase; letter-spacing:.07em; margin-bottom:3px; }
+.meta-val { font-size:13px; color:var(--text); }
+
+.summary-bar {
+  display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:28px;
+}
+.summary-tile {
+  border:1px solid var(--border); background:var(--surface); padding:16px 18px;
+}
+.summary-num { font-family:var(--mono); font-size:24px; font-weight:700; color:var(--text); }
+.summary-lbl { font-size:11px; color:var(--muted); margin-top:4px; text-transform:uppercase; letter-spacing:.06em; }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- Topbar -->
+  <header class="topbar">
+    <div class="topbar-logo">Ride<span>Mate</span></div>
+    <div class="topbar-right">
+      <span class="user-name" id="topbar-name">—</span>
+    </div>
+  </header>
+
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="nav-section-label" id="nav-role-label">Passenger</div>
+    <a class="nav-link" href="dashboard.html" id="nav-home"><span class="nav-icon">🏠</span> Dashboard</a>
+    <a class="nav-link" href="map.html"><span class="nav-icon">🗺️</span> City Map</a>
+    <div class="nav-section-label">Account</div>
+    <a class="nav-link active" href="history.html"><span class="nav-icon">📋</span> Ride History</a>
+    <div class="sidebar-footer">
+      <button class="logout-btn" onclick="doLogout()">Sign Out</button>
+    </div>
+  </nav>
+
+  <!-- Main -->
+  <main class="main">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Ride History</div>
+        <div class="page-sub" id="page-sub">Loading...</div>
+      </div>
+    </div>
+
+    <!-- Summary tiles -->
+    <div class="summary-bar" id="summary-bar">
+      <div class="summary-tile">
+        <div class="summary-num" id="sum-total">0</div>
+        <div class="summary-lbl">Total Rides</div>
+      </div>
+      <div class="summary-tile">
+        <div class="summary-num accent" id="sum-spend">₹0</div>
+        <div class="summary-lbl" id="sum-spend-label">Total Spent</div>
+      </div>
+      <div class="summary-tile">
+        <div class="summary-num" id="sum-fav-type">—</div>
+        <div class="summary-lbl">Fav. Vehicle</div>
+      </div>
+      <div class="summary-tile">
+        <div class="summary-num" id="sum-avg">₹0</div>
+        <div class="summary-lbl">Avg Fare</div>
+      </div>
+    </div>
+
+    <!-- Tab bar (only shown if driver) -->
+    <div class="history-tabs" id="tab-bar" style="display:none;">
+      <button class="htab active" onclick="switchTab('my')">My Rides</button>
+      <button class="htab" onclick="switchTab('recent')">All Recent</button>
+    </div>
+
+    <!-- Ride list -->
+    <div id="ride-list">
+      <div class="empty"><div class="spinner"></div></div>
+    </div>
+
+  </main>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+requireAuth();
+const user = getUser();
+document.getElementById('topbar-name').textContent = user?.name ?? '—';
+
+const isDriver = user?.role === 'driver';
+if (isDriver) {
+  document.getElementById('nav-home').href = 'driver.html';
+  document.getElementById('nav-role-label').textContent = 'Driver';
+  document.getElementById('tab-bar').style.display = '';
+  document.getElementById('sum-spend-label').textContent = 'Total Earned';
+}
+
+let allRides = [];
+let recentRides = [];
+let currentTab = 'my';
+
+// ── Load rides ────────────────────────────────────────────────────────────
+async function loadHistory() {
+  const [myR, recentR] = await Promise.all([
+    isDriver ? Drivers.history(user.userId) : Passengers.history(user.userId),
+    Rides.recent(),
+  ]);
+
+  allRides    = myR.rides    ?? [];
+  recentRides = recentR.rides ?? [];
+
+  document.getElementById('page-sub').textContent =
+    `${allRides.length} ride${allRides.length !== 1 ? 's' : ''} found`;
+
+  renderSummary(allRides);
+  renderList(allRides);
+}
+
+// ── Summary ───────────────────────────────────────────────────────────────
+function renderSummary(rides) {
+  const total = rides.length;
+  const spend = rides.reduce((s, r) => s + (r.fare ?? 0), 0);
+  const avg   = total ? spend / total : 0;
+
+  // Favourite vehicle
+  const counts = {};
+  rides.forEach(r => counts[r.rideType] = (counts[r.rideType] ?? 0) + 1);
+  const favType = Object.entries(counts).sort((a,b) => b[1]-a[1])[0]?.[0];
+
+  document.getElementById('sum-total').textContent   = total;
+  document.getElementById('sum-spend').textContent   = formatFare(spend);
+  document.getElementById('sum-fav-type').textContent = favType ? (VEHICLE_META[favType]?.icon + ' ' + VEHICLE_META[favType]?.label) : '—';
+  document.getElementById('sum-avg').textContent     = formatFare(avg);
+}
+
+// ── Render list ───────────────────────────────────────────────────────────
+function renderList(rides) {
+  const el = document.getElementById('ride-list');
+  if (!rides || !rides.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">No rides found</div></div>';
+    return;
+  }
+
+  el.innerHTML = rides.map((r, i) => {
+    const statusBadge = {
+      completed: '<span class="badge badge-green">Completed</span>',
+      cancelled: '<span class="badge badge-red">Cancelled</span>',
+      ongoing:   '<span class="badge badge-amber">Ongoing</span>',
+      requested: '<span class="badge badge-blue">Requested</span>',
+    }[r.status] ?? `<span class="badge badge-muted">${r.status}</span>`;
+
+    const vm = VEHICLE_META[r.rideType] ?? { icon:'🚗', label: r.rideType };
+
+    return `
+      <div class="ride-card" style="animation-delay:${i * 0.04}s">
+        <div class="ride-card-header">
+          <div>
+            <span class="ride-card-id">RIDE #${r.rideId}</span>
+            <span style="margin-left:10px;">${statusBadge}</span>
+          </div>
+          <div class="ride-card-fare">${formatFare(r.fare)}</div>
+        </div>
+        <div class="ride-meta">
+          <div class="meta-block">
+            <div class="meta-key">From</div>
+            <div class="meta-val">${locationName(r.pickup)}</div>
+          </div>
+          <div class="meta-block">
+            <div class="meta-key">To</div>
+            <div class="meta-val">${locationName(r.drop)}</div>
+          </div>
+          <div class="meta-block">
+            <div class="meta-key">Vehicle</div>
+            <div class="meta-val"><span class="vchip">${vm.icon} ${vm.label}</span></div>
+          </div>
+          ${isDriver
+            ? `<div class="meta-block"><div class="meta-key">Passenger</div><div class="meta-val mono">#${r.passengerId}</div></div>`
+            : `<div class="meta-block"><div class="meta-key">Driver</div><div class="meta-val mono">${r.driverId > 0 ? '#' + r.driverId : '—'}</div></div>`
+          }
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ── Tab switch (driver only) ──────────────────────────────────────────────
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.htab').forEach((b,i) => b.classList.toggle('active', (i===0)===(tab==='my')));
+  if (tab === 'my') {
+    renderSummary(allRides);
+    renderList(allRides);
+  } else {
+    renderSummary(recentRides);
+    renderList(recentRides);
+  }
+}
+
+async function doLogout() {
+  await Auth.logout();
+  clearAuth();
+  window.location.href = 'index.html';
+}
+
+loadHistory();
+</script>
+</body>
+</html>

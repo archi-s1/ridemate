@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RideMate — Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/global.css">
+<style>
+.fare-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:16px; }
+.fare-card { border:1px solid var(--border); padding:14px 10px; text-align:center; cursor:pointer; transition:all .2s; background:var(--bg); }
+.fare-card:hover { border-color:var(--muted); }
+.fare-card.selected { border-color:var(--accent); background:rgba(217,119,6,.07); }
+.fare-icon  { font-size:22px; margin-bottom:5px; }
+.fare-name  { font-family:var(--mono); font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; }
+.fare-price { font-family:var(--mono); font-size:20px; font-weight:700; color:var(--text); margin:6px 0 3px; }
+.fare-price.loading { color:var(--muted2); font-size:14px; }
+.fare-desc  { font-size:10px; color:var(--muted2); }
+
+.section-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+.ride-status-row { display:flex; align-items:center; justify-content:space-between; padding:14px 0; border-bottom:1px solid var(--border); }
+.ride-status-row:last-child { border-bottom:none; }
+.ride-route { display:flex; align-items:center; gap:8px; font-size:13px; }
+.ride-arrow { color:var(--muted2); font-size:12px; }
+
+.algo-info {
+  display:flex; align-items:center; gap:10px;
+  padding:10px 14px; border:1px solid var(--border);
+  background:rgba(217,119,6,.04); margin-bottom:14px;
+  font-size:12px; color:var(--muted);
+}
+.algo-info strong { color:var(--accent); font-family:var(--mono); }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- Topbar -->
+  <header class="topbar">
+    <div class="topbar-logo">Ride<span>Mate</span></div>
+    <div class="topbar-right">
+      <span class="algo-badge" id="algo-badge">ALGO: —</span>
+      <span class="user-name" id="topbar-name">—</span>
+    </div>
+  </header>
+
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="nav-section-label">Passenger</div>
+    <a class="nav-link active" href="dashboard.html"><span class="nav-icon">🏠</span> Dashboard</a>
+    <a class="nav-link" href="map.html"><span class="nav-icon">🗺️</span> City Map</a>
+    <div class="nav-section-label">Account</div>
+    <a class="nav-link" href="admin.html"><span class="nav-icon">👥</span> Drivers</a>
+    <a class="nav-link" href="history.html"><span class="nav-icon">📋</span> Ride History</a>
+    <div class="sidebar-footer">
+      <button class="logout-btn" onclick="doLogout()">Sign Out</button>
+    </div>
+  </nav>
+
+  <!-- Main -->
+  <main class="main">
+
+    <!-- Stats row -->
+    <div class="stat-row" id="stat-row">
+      <div class="stat-tile">
+        <div class="stat-val" id="stat-total">—</div>
+        <div class="stat-label">Total Rides</div>
+      </div>
+      <div class="stat-tile green-top">
+        <div class="stat-val" id="stat-ongoing">—</div>
+        <div class="stat-label">Ongoing</div>
+      </div>
+      <div class="stat-tile blue-top">
+        <div class="stat-val" id="stat-drivers">—</div>
+        <div class="stat-label">Available Drivers</div>
+      </div>
+      <div class="stat-tile">
+        <div class="stat-val mono accent" id="stat-algo">—</div>
+        <div class="stat-label">Active Algorithm</div>
+      </div>
+    </div>
+
+    <div class="section-grid">
+
+      <!-- Book a ride -->
+      <div class="card">
+        <div class="card-title">Book a Ride</div>
+
+        <div class="form-group">
+          <label class="label">Pickup Location</label>
+          <select id="pickup" class="input" onchange="updateFares()"></select>
+        </div>
+        <div class="form-group">
+          <label class="label">Drop Location</label>
+          <select id="drop" class="input" onchange="updateFares()"></select>
+        </div>
+
+        <div class="algo-info">
+          <span>⚡</span>
+          <span>Routing via <strong id="fare-algo">—</strong> — fares cached O(1)</span>
+        </div>
+
+        <div class="label" style="margin-bottom:10px">Select Vehicle</div>
+        <div class="fare-grid" id="fare-grid">
+          <!-- filled by JS -->
+        </div>
+
+        <button class="btn btn-primary" style="width:100%; margin-top:6px;" id="book-btn" onclick="bookRide()">
+          Request Ride →
+        </button>
+      </div>
+
+      <!-- Current / recent ride -->
+      <div>
+        <div class="card" style="margin-bottom:20px;" id="active-ride-card">
+          <div class="card-title">Current Ride</div>
+          <div id="active-ride-body">
+            <div class="empty"><div class="empty-icon">🚗</div><div class="empty-text">No active ride</div></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Recent Activity</div>
+          <div id="recent-list">
+            <div class="empty"><div class="empty-icon">📋</div><div class="empty-text">No recent rides</div></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+requireRole('passenger');
+
+const user = getUser();
+document.getElementById('topbar-name').textContent = user?.name ?? '—';
+
+let selectedVt = 'mini';
+let fareData   = {};
+let currentRideId = null;
+
+// ── Populate location selects ─────────────────────────────────────────────
+function populateSelects() {
+  ['pickup','drop'].forEach((id, idx) => {
+    const sel = document.getElementById(id);
+    LOCATIONS.forEach((l,i) => {
+      const o = document.createElement('option');
+      o.value = i;
+      o.textContent = `${i} — ${l}`;
+      if (i === idx) o.selected = true;
+      sel.appendChild(o);
+    });
+  });
+  document.getElementById('drop').value = 5;
+}
+
+// ── Build fare cards ──────────────────────────────────────────────────────
+function buildFareGrid() {
+  const grid = document.getElementById('fare-grid');
+  grid.innerHTML = '';
+  Object.entries(VEHICLE_META).forEach(([vt, m]) => {
+    const card = document.createElement('div');
+    card.className = 'fare-card' + (vt === selectedVt ? ' selected' : '');
+    card.dataset.vt = vt;
+    card.innerHTML = `
+      <div class="fare-icon">${m.icon}</div>
+      <div class="fare-name">${m.label}</div>
+      <div class="fare-price loading" id="fp-${vt}">...</div>
+      <div class="fare-desc">${m.desc}</div>
+    `;
+    card.onclick = () => {
+      selectedVt = vt;
+      grid.querySelectorAll('.fare-card').forEach(c => c.classList.remove('selected'));
+      card.classList.add('selected');
+    };
+    grid.appendChild(card);
+  });
+}
+
+async function updateFares() {
+  const pickup = parseInt(document.getElementById('pickup').value);
+  const drop   = parseInt(document.getElementById('drop').value);
+  if (pickup === drop) return;
+
+  Object.keys(VEHICLE_META).forEach(vt => {
+    const el = document.getElementById(`fp-${vt}`);
+    if (el) { el.textContent = '...'; el.className = 'fare-price loading'; }
+  });
+
+  // Use mini as base, compute others from multipliers
+  const r = await Rides.preview(pickup, drop, 'mini');
+  if (!r.ok) return;
+
+  const base = r.fare / VEHICLE_META.mini.mult; // reverse the mini multiplier to get base
+  fareData = {};
+
+  document.getElementById('fare-algo').textContent = r.algorithm ?? '—';
+  document.getElementById('algo-badge').textContent = `ALGO: ${r.algorithm ?? '—'}`;
+  document.getElementById('stat-algo').textContent  = r.algorithm ?? '—';
+
+  Object.entries(VEHICLE_META).forEach(([vt, m]) => {
+    fareData[vt] = Math.round(base * m.mult);
+    const el = document.getElementById(`fp-${vt}`);
+    if (el) { el.textContent = `₹${fareData[vt]}`; el.className = 'fare-price'; }
+  });
+}
+
+// ── Book ride ─────────────────────────────────────────────────────────────
+async function bookRide() {
+  const pickup = parseInt(document.getElementById('pickup').value);
+  const drop   = parseInt(document.getElementById('drop').value);
+  if (pickup === drop) { toast('Pickup and drop cannot be the same', 'error'); return; }
+
+  const btn = document.getElementById('book-btn');
+  setLoading(btn, true);
+  const r = await Rides.request(user.userId, pickup, drop, selectedVt);
+  setLoading(btn, false);
+
+  if (!r.ok) { toast(r.msg, 'error'); return; }
+
+  currentRideId = r.rideId;
+  toast(`Ride #${r.rideId} requested!`, 'success');
+  renderActiveRide({ rideId: r.rideId, pickup, drop, status: 'requested', rideType: selectedVt, fare: fareData[selectedVt] ?? 0 });
+  loadStats();
+}
+
+// ── Active ride card ──────────────────────────────────────────────────────
+function renderActiveRide(ride) {
+  if (!ride) {
+    document.getElementById('active-ride-body').innerHTML =
+      '<div class="empty"><div class="empty-icon">🚗</div><div class="empty-text">No active ride</div></div>';
+    return;
+  }
+  const statusBadge = {
+    requested: '<span class="badge badge-amber">Requested</span>',
+    ongoing:   '<span class="badge badge-green">Ongoing</span>',
+    completed: '<span class="badge badge-muted">Completed</span>',
+    cancelled: '<span class="badge badge-red">Cancelled</span>',
+  }[ride.status] ?? `<span class="badge badge-muted">${ride.status}</span>`;
+
+  document.getElementById('active-ride-body').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <span class="mono" style="font-size:13px;">Ride #${ride.rideId}</span>
+      ${statusBadge}
+    </div>
+    <div class="ride-status-row">
+      <span class="muted" style="font-size:11px;">ROUTE</span>
+      <div class="ride-route">
+        <span>${locationName(ride.pickup)}</span>
+        <span class="ride-arrow">→</span>
+        <span>${locationName(ride.drop)}</span>
+      </div>
+    </div>
+    <div class="ride-status-row">
+      <span class="muted" style="font-size:11px;">VEHICLE</span>
+      <span class="vchip">${VEHICLE_META[ride.rideType]?.icon ?? '🚗'} ${VEHICLE_META[ride.rideType]?.label ?? ride.rideType}</span>
+    </div>
+    <div class="ride-status-row">
+      <span class="muted" style="font-size:11px;">FARE</span>
+      <span class="mono accent" style="font-size:16px;">${formatFare(ride.fare)}</span>
+    </div>
+    ${ride.driverId && ride.driverId > 0 ? `<div class="ride-status-row"><span class="muted" style="font-size:11px;">DRIVER</span><span>#${ride.driverId}</span></div>` : ''}
+    ${ride.status === 'requested' ? `<button class="btn btn-danger btn-sm" style="margin-top:14px;" onclick="cancelRide(${ride.rideId})">Cancel Ride</button>` : ''}
+  `;
+}
+
+async function cancelRide(rideId) {
+  const r = await Rides.cancel(rideId);
+  if (r.ok) { toast('Ride cancelled', 'info'); renderActiveRide(null); loadStats(); }
+  else toast(r.msg, 'error');
+}
+
+// ── Recent list ───────────────────────────────────────────────────────────
+function renderRecentList(rides) {
+  const el = document.getElementById('recent-list');
+  if (!rides || !rides.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">No recent rides</div></div>';
+    return;
+  }
+  el.innerHTML = rides.slice(0, 5).map(r => `
+    <div class="ride-status-row">
+      <div>
+        <div class="ride-route" style="margin-bottom:3px;">
+          <span style="font-size:13px;">${locationName(r.pickup)}</span>
+          <span class="ride-arrow">→</span>
+          <span style="font-size:13px;">${locationName(r.drop)}</span>
+        </div>
+        <span class="muted" style="font-size:11px;">${VEHICLE_META[r.rideType]?.icon ?? ''} ${VEHICLE_META[r.rideType]?.label ?? r.rideType}</span>
+      </div>
+      <div style="text-align:right;">
+        <div class="mono accent" style="font-size:14px;">${formatFare(r.fare)}</div>
+        <div class="muted" style="font-size:11px;">#${r.rideId}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ── Stats ─────────────────────────────────────────────────────────────────
+async function loadStats() {
+  const [history, ongoing, avail, algo] = await Promise.all([
+    Passengers.history(user.userId),
+    Rides.ongoing(),
+    Drivers.avail(),
+    Meta.algorithm(),
+  ]);
+
+  document.getElementById('stat-total').textContent   = history.rides?.length ?? 0;
+  document.getElementById('stat-ongoing').textContent = ongoing.rides?.length ?? 0;
+  document.getElementById('stat-drivers').textContent = avail.drivers?.length ?? 0;
+  document.getElementById('stat-algo').textContent    = algo.algorithm ?? '—';
+  document.getElementById('algo-badge').textContent   = `ALGO: ${algo.algorithm ?? '—'}`;
+
+  renderRecentList(history.rides ?? []);
+
+  // Check if user has an active ride
+  const myRide = ongoing.rides?.find(r => r.passengerId === user.userId);
+  if (myRide) { currentRideId = myRide.rideId; renderActiveRide(myRide); }
+}
+
+// ── Logout ────────────────────────────────────────────────────────────────
+async function doLogout() {
+  await Auth.logout();
+  clearAuth();
+  window.location.href = 'index.html';
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+populateSelects();
+buildFareGrid();
+updateFares();
+loadStats();
+</script>
+</body>
+</html>

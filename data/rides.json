@@ -1,0 +1,12 @@
+[
+  {
+    "driverId": 2,
+    "drop": 5,
+    "fare": 39.0,
+    "passengerId": 1,
+    "pickup": 0,
+    "rideId": 1,
+    "rideType": "mini",
+    "status": "completed"
+  }
+]

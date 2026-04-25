@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RideMate — City Map</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/global.css">
+<style>
+/* ── Layout ── */
+.map-outer {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 20px;
+  align-items: start;
+}
+
+/* ── Algorithm selector tabs ── */
+.algo-tabs {
+  display: flex;
+  gap: 0;
+  border: 1px solid var(--border);
+  margin-bottom: 0;
+  background: var(--bg);
+}
+.algo-tab {
+  flex: 1;
+  padding: 10px 8px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  background: none;
+  border: none;
+  border-right: 1px solid var(--border);
+  color: var(--muted);
+  cursor: pointer;
+  transition: all .18s;
+  text-align: center;
+}
+.algo-tab:last-child { border-right: none; }
+.algo-tab:hover { color: var(--text); background: var(--surface2); }
+.algo-tab.active-dijkstra { color: #d97706; background: rgba(217,119,6,.08); border-bottom: 2px solid #d97706; }
+.algo-tab.active-bfs      { color: #3b82f6; background: rgba(59,130,246,.08); border-bottom: 2px solid #3b82f6; }
+.algo-tab.active-floyd    { color: #22c55e; background: rgba(34,197,94,.08);  border-bottom: 2px solid #22c55e; }
+
+/* ── Algorithm info box ── */
+.algo-info-box {
+  border: 1px solid var(--border);
+  border-top: none;
+  padding: 14px 16px;
+  background: var(--surface);
+  margin-bottom: 14px;
+}
+.algo-info-name {
+  font-family: var(--mono);
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.algo-info-desc { font-size: 12px; color: var(--muted); line-height: 1.6; margin-bottom: 12px; }
+.complexity-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.complexity-box {
+  border: 1px solid var(--border);
+  padding: 8px 12px;
+  background: var(--bg);
+}
+.complexity-key  { font-size: 10px; color: var(--muted2); text-transform: uppercase; letter-spacing: .07em; margin-bottom: 3px; }
+.complexity-val  { font-family: var(--mono); font-size: 13px; font-weight: 700; }
+.works-on-row    { font-size: 11px; color: var(--muted); margin-top: 6px; }
+.works-on-row strong { color: var(--text); }
+
+/* ── Path result ── */
+.path-result {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  padding: 14px 16px;
+  margin-top: 12px;
+  animation: fadeIn .25s ease both;
+}
+.path-nodes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 10px 0;
+  align-items: center;
+}
+.path-node {
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+}
+.path-arrow { color: var(--muted2); font-size: 12px; }
+.result-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.result-row:last-child { border: none; }
+.result-key { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+
+/* ── Comparison table ── */
+.compare-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin-top: 14px;
+}
+.compare-table th {
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 8px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  letter-spacing: .07em;
+  text-transform: uppercase;
+}
+.compare-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+.compare-table tr:last-child td { border: none; }
+.ct-dijkstra { color: #d97706; font-family: var(--mono); }
+.ct-bfs      { color: #3b82f6; font-family: var(--mono); }
+.ct-floyd    { color: #22c55e; font-family: var(--mono); }
+
+/* ── Node inspector ── */
+.node-info-box {
+  border: 1px solid var(--accent);
+  background: rgba(217,119,6,.04);
+  padding: 14px 16px;
+}
+.node-info-title {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--accent);
+  margin-bottom: 10px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.neighbor-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.neighbor-row:last-child { border: none; }
+
+/* ── Active algo indicator on map ── */
+.map-algo-badge {
+  position: absolute;
+  top: 10px; left: 10px;
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 4px 10px;
+  letter-spacing: .08em;
+  z-index: 2;
+  pointer-events: none;
+}
+.badge-dijkstra { background: rgba(217,119,6,.15); color: #d97706; border: 1px solid rgba(217,119,6,.3); }
+.badge-bfs      { background: rgba(59,130,246,.15); color: #3b82f6; border: 1px solid rgba(59,130,246,.3); }
+.badge-floyd    { background: rgba(34,197,94,.15);  color: #22c55e; border: 1px solid rgba(34,197,94,.3); }
+
+.map-container { position: relative; border: 1px solid var(--border); background: var(--bg); }
+.map-container svg { display: block; width: 100%; }
+
+.panel-stack > * + * { margin-top: 14px; }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- Topbar -->
+  <header class="topbar">
+    <div class="topbar-logo">Ride<span>Mate</span></div>
+    <div class="topbar-right">
+      <span class="algo-badge" id="algo-badge">ALGO: —</span>
+      <span class="user-name" id="topbar-name">—</span>
+      <!-- Logout always visible in topbar as fallback -->
+      <button class="btn btn-ghost btn-sm" onclick="doLogout()" style="font-size:11px;">Sign Out</button>
+    </div>
+  </header>
+
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="nav-section-label" id="nav-role-label">Passenger</div>
+    <a class="nav-link" href="dashboard.html" id="nav-home"><span class="nav-icon">🏠</span> Dashboard</a>
+    <a class="nav-link active" href="map.html"><span class="nav-icon">🗺️</span> City Map</a>
+    <a class="nav-link" href="admin.html"><span class="nav-icon">👥</span> Drivers</a>
+    <div class="nav-section-label">Account</div>
+    <a class="nav-link" href="history.html"><span class="nav-icon">📋</span> Ride History</a>
+    <div class="sidebar-footer">
+      <button class="logout-btn" onclick="doLogout()">Sign Out</button>
+    </div>
+  </nav>
+
+  <!-- Main -->
+  <main class="main">
+    <div class="page-header">
+      <div>
+        <div class="page-title">City Graph</div>
+        <div class="page-sub">20-node weighted undirected graph · click any node to inspect it</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="loadMap()">↻ Reload</button>
+    </div>
+
+    <div class="map-outer">
+
+      <!-- ── Left: map + graph tools ── -->
+      <div>
+
+        <!-- Algorithm tabs -->
+        <div class="algo-tabs" id="algo-tabs">
+          <button class="algo-tab active-dijkstra" data-algo="dijkstra" onclick="selectAlgo('dijkstra')">⚡ Dijkstra</button>
+          <button class="algo-tab" data-algo="bfs"      onclick="selectAlgo('bfs')">🌊 BFS</button>
+          <button class="algo-tab" data-algo="floyd"    onclick="selectAlgo('floyd')">🔲 Floyd-Warshall</button>
+        </div>
+
+        <!-- Algorithm info box -->
+        <div class="algo-info-box" id="algo-info-box">
+          <!-- filled by JS -->
+        </div>
+
+        <!-- SVG map -->
+        <div class="map-container" id="map-container">
+          <div class="empty" style="padding:80px 0;"><div class="spinner"></div></div>
+        </div>
+
+        <!-- Edge mutation -->
+        <div class="card" style="margin-top:16px;">
+          <div class="card-title">Modify Graph — Dynamic Updates</div>
+          <div class="form-row" style="margin-bottom:10px;">
+            <div class="form-group" style="margin:0;">
+              <label class="label">Node U</label>
+              <select id="edge-u" class="input"></select>
+            </div>
+            <div class="form-group" style="margin:0;">
+              <label class="label">Node V</label>
+              <select id="edge-v" class="input"></select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="label">Weight</label>
+            <input id="edge-w" type="number" class="input" value="5" min="1" max="99">
+          </div>
+          <div style="display:flex;gap:10px;">
+            <button class="btn btn-primary" onclick="addEdge()">Add Edge</button>
+            <button class="btn btn-danger"  onclick="removeEdge()">Remove Edge</button>
+          </div>
+          <div class="muted" style="font-size:11px;margin-top:10px;">
+            ⚡ Graph changes invalidate the server-side route cache and may switch the adaptive algorithm.
+          </div>
+        </div>
+
+        <!-- Full complexity comparison table -->
+        <div class="card" style="margin-top:16px;">
+          <div class="card-title">Algorithm Comparison</div>
+          <table class="compare-table">
+            <thead>
+              <tr>
+                <th>Algorithm</th>
+                <th>Time</th>
+                <th>Space</th>
+                <th>Best For</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="ct-dijkstra">Dijkstra</td>
+                <td class="mono" style="font-size:11px;">O((V+E) log V)</td>
+                <td class="mono" style="font-size:11px;">O(V)</td>
+                <td style="color:var(--muted);font-size:11px;">Single-source, weighted</td>
+              </tr>
+              <tr>
+                <td class="ct-bfs">BFS</td>
+                <td class="mono" style="font-size:11px;">O(V + E)</td>
+                <td class="mono" style="font-size:11px;">O(V)</td>
+                <td style="color:var(--muted);font-size:11px;">Unweighted / fewest hops</td>
+              </tr>
+              <tr>
+                <td class="ct-floyd">Floyd-Warshall</td>
+                <td class="mono" style="font-size:11px;">O(V³)</td>
+                <td class="mono" style="font-size:11px;">O(V²)</td>
+                <td style="color:var(--muted);font-size:11px;">All-pairs, any weights</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="muted" style="font-size:11px;margin-top:10px;line-height:1.6;">
+            V = vertices (nodes), E = edges. For this 20-node graph:
+            V=20, E≈20. Dijkstra ≈ 80 ops, BFS ≈ 40 ops, Floyd ≈ 8,000 ops.
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ── Right panel ── -->
+      <div class="panel-stack">
+
+        <!-- Node inspector -->
+        <div id="node-inspector" style="display:none;" class="node-info-box">
+          <div class="node-info-title">Node <span id="ni-id">—</span></div>
+          <div style="font-size:14px;margin-bottom:10px;" id="ni-name">—</div>
+          <div class="muted" style="font-size:10px;text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;">Neighbours</div>
+          <div id="ni-neighbors"></div>
+        </div>
+
+        <!-- Path finder -->
+        <div class="card">
+          <div class="card-title">Find Shortest Path</div>
+
+          <div class="form-group">
+            <label class="label">Algorithm</label>
+            <select id="path-algo" class="input" onchange="onAlgoDropdown()">
+              <option value="dijkstra">⚡ Dijkstra  —  O((V+E) log V)</option>
+              <option value="bfs">🌊 BFS  —  O(V + E)</option>
+              <option value="floyd">🔲 Floyd-Warshall  —  O(V³)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="label">From</label>
+            <select id="sp-from" class="input"></select>
+          </div>
+          <div class="form-group">
+            <label class="label">To</label>
+            <select id="sp-to" class="input"></select>
+          </div>
+
+          <button class="btn btn-primary" style="width:100%;" id="compute-btn" onclick="computePath()">
+            Compute Path →
+          </button>
+
+          <div id="sp-result"></div>
+        </div>
+
+        <!-- Location search -->
+        <div class="card">
+          <div class="card-title">Search Location (Trie)</div>
+          <input id="search-q" class="input" placeholder="e.g. mg, ko, white…" oninput="searchLoc()">
+          <div id="search-results" style="margin-top:10px;"></div>
+        </div>
+
+        <!-- Prewarm -->
+        <div class="card">
+          <div class="card-title">Cache Control</div>
+          <div class="muted" style="font-size:12px;margin-bottom:10px;line-height:1.6;">
+            Server-side route cache stores all 400 node-pair distances.
+            After graph mutations, re-warm to update.
+          </div>
+          <button class="btn btn-ghost" style="width:100%;" onclick="prewarm()">↺ Pre-warm Cache</button>
+          <div id="prewarm-result" style="margin-top:8px;font-size:12px;color:var(--muted);"></div>
+        </div>
+
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/map.js"></script>
+<script>
+requireAuth();
+const user = getUser();
+document.getElementById('topbar-name').textContent = user?.name ?? '—';
+if (user?.role === 'driver') {
+  document.getElementById('nav-home').href = 'driver.html';
+  document.getElementById('nav-role-label').textContent = 'Driver';
+}
+
+let cityMapWidget = new CityMap('map-container');
+let graphData = [];
+let currentAlgo = 'dijkstra';
+
+// ── Populate selects ──────────────────────────────────────────────────────
+function populateSelects() {
+  ['sp-from', 'sp-to', 'edge-u', 'edge-v'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    LOCATIONS.forEach((l, i) => {
+      const o = document.createElement('option');
+      o.value = i;
+      o.textContent = `${i} — ${l}`;
+      sel.appendChild(o);
+    });
+  });
+  document.getElementById('sp-to').value   = 7;
+  document.getElementById('edge-v').value  = 5;
+}
+
+// ── Algorithm selection ───────────────────────────────────────────────────
+function selectAlgo(algo) {
+  currentAlgo = algo;
+
+  // Sync tabs
+  document.querySelectorAll('.algo-tab').forEach(t => {
+    t.className = 'algo-tab';
+    if (t.dataset.algo === algo) t.classList.add(`active-${algo}`);
+  });
+
+  // Sync dropdown in path tool
+  document.getElementById('path-algo').value = algo;
+
+  // Update info box
+  renderAlgoInfo(algo);
+
+  // Re-highlight path with new color if one is showing
+  const resultEl = document.getElementById('sp-result');
+  if (resultEl.innerHTML) computePath();
+}
+
+function onAlgoDropdown() {
+  const val = document.getElementById('path-algo').value;
+  selectAlgo(val);
+}
+
+function renderAlgoInfo(algo) {
+  const m = ALGO_META[algo];
+  const box = document.getElementById('algo-info-box');
+  box.style.borderTop = `2px solid ${m.color}`;
+  box.innerHTML = `
+    <div class="algo-info-name" style="color:${m.color}">${m.label}</div>
+    <div class="algo-info-desc">${m.description}</div>
+    <div class="complexity-row">
+      <div class="complexity-box">
+        <div class="complexity-key">Time Complexity</div>
+        <div class="complexity-val" style="color:${m.color}">${m.time}</div>
+      </div>
+      <div class="complexity-box">
+        <div class="complexity-key">Space Complexity</div>
+        <div class="complexity-val" style="color:${m.color}">${m.space}</div>
+      </div>
+    </div>
+    <div class="works-on-row">Works on: <strong>${m.works_on}</strong></div>
+  `;
+  document.getElementById('algo-badge').textContent = `ALGO: ${m.label.toUpperCase()}`;
+}
+
+// ── Load map ──────────────────────────────────────────────────────────────
+async function loadMap() {
+  const r = await MapApi.get();
+  if (!r.ok) { toast('Failed to load map', 'error'); return; }
+  graphData = r.nodes;
+  cityMapWidget.render(graphData);
+  cityMapWidget.onNodeClick = inspectNode;
+
+  // Show adaptive algo badge from server
+  const ar = await Meta.algorithm();
+  const serverAlgo = ar.algorithm ?? '—';
+  // Don't override user selection, just note it
+  document.getElementById('algo-badge').textContent =
+    `SERVER: ${serverAlgo} / VIEW: ${ALGO_META[currentAlgo].label}`;
+}
+
+// ── Node inspector ────────────────────────────────────────────────────────
+function inspectNode(i) {
+  const nodeData = graphData.find(n => n.node === i);
+  if (!nodeData) return;
+
+  document.getElementById('node-inspector').style.display = '';
+  document.getElementById('ni-id').textContent   = i;
+  document.getElementById('ni-name').textContent = locationName(i);
+
+  const nbEl = document.getElementById('ni-neighbors');
+  if (!nodeData.edges.length) {
+    nbEl.innerHTML = '<div class="muted" style="font-size:12px;">No edges</div>';
+    return;
+  }
+  nbEl.innerHTML = nodeData.edges.map(e => `
+    <div class="neighbor-row">
+      <span>${e.to} — ${locationName(e.to).split(' ')[0]}</span>
+      <span class="mono accent">w = ${e.weight}</span>
+    </div>
+  `).join('');
+}
+
+// ── Path computation (all 3 algos run in browser JS) ─────────────────────
+function computePath() {
+  const from  = parseInt(document.getElementById('sp-from').value);
+  const to    = parseInt(document.getElementById('sp-to').value);
+  const algo  = document.getElementById('path-algo').value;
+  const el    = document.getElementById('sp-result');
+
+  if (!cityMapWidget.pathFinder) {
+    el.innerHTML = '<div class="badge badge-red">Map not loaded yet</div>';
+    return;
+  }
+  if (from === to) {
+    el.innerHTML = '<div class="badge badge-muted">From and To are the same node</div>';
+    return;
+  }
+
+  const m = ALGO_META[algo];
+
+  // Time the computation
+  const t0 = performance.now();
+  const result = cityMapWidget.pathFinder.compute(algo, from, to);
+  const elapsed = (performance.now() - t0).toFixed(3);
+
+  if (!result.path.length || result.distance >= 1e9) {
+    el.innerHTML = `<div class="badge badge-red">No path found between ${from} and ${to}</div>`;
+    cityMapWidget.clearHighlight();
+    return;
+  }
+
+  // Highlight on map
+  cityMapWidget.highlightPath(result.path, m.color);
+
+  // Build path node chips
+  const pathHtml = result.path.map((n, i) => {
+    const isEnd = i === 0 || i === result.path.length - 1;
+    return `
+      ${i > 0 ? '<span class="path-arrow">→</span>' : ''}
+      <span class="path-node" style="${isEnd ? `border-color:${m.color};color:${m.color}` : ''}">${n}</span>
+    `;
+  }).join('');
+
+  // BFS note: distance = hops, we also show weighted cost
+  const distLabel   = algo === 'bfs' ? 'Distance (hops)' : 'Distance (weight)';
+  const distVal     = algo === 'bfs' ? result.distance : result.distance;
+  const extraRow    = algo === 'bfs' && result.weightedCost !== undefined
+    ? `<div class="result-row"><span class="result-key">Weighted cost</span><span class="mono">${result.weightedCost}</span></div>`
+    : '';
+  const fare        = algo !== 'bfs'
+    ? `<div class="result-row"><span class="result-key">Mini fare</span><span class="mono accent">${formatFare(result.distance * 2 * 1.3)}</span></div>`
+    : '';
+
+  el.innerHTML = `
+    <div class="path-result">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <span class="mono" style="font-size:11px;color:${m.color};">${m.label}</span>
+        <span class="badge" style="background:rgba(0,0,0,.2);border:1px solid ${m.color};color:${m.color};">
+          ${result.path.length} nodes
+        </span>
+      </div>
+
+      <div style="margin-bottom:10px;">
+        <div class="result-key" style="margin-bottom:6px;">Path</div>
+        <div class="path-nodes">${pathHtml}</div>
+      </div>
+
+      <div class="result-row">
+        <span class="result-key">${distLabel}</span>
+        <span class="mono" style="font-size:16px;color:${m.color};">${distVal}</span>
+      </div>
+      ${extraRow}
+      <div class="result-row">
+        <span class="result-key">Hops</span>
+        <span class="mono">${result.hops}</span>
+      </div>
+      ${fare}
+      <div class="result-row">
+        <span class="result-key">Computed in</span>
+        <span class="mono">${elapsed} ms</span>
+      </div>
+      <div class="result-row">
+        <span class="result-key">Time complexity</span>
+        <span class="mono" style="color:${m.color};">${m.time}</span>
+      </div>
+      <div class="result-row">
+        <span class="result-key">Space complexity</span>
+        <span class="mono" style="color:${m.color};">${m.space}</span>
+      </div>
+    </div>
+
+    <!-- Run all 3 and compare -->
+    <div style="margin-top:12px;">
+      <div class="card-title">Compare All Three</div>
+      ${buildComparison(from, to)}
+    </div>
+  `;
+}
+
+function buildComparison(from, to) {
+  const pf = cityMapWidget.pathFinder;
+  if (!pf) return '';
+
+  const results = {
+    dijkstra: pf.compute('dijkstra', from, to),
+    bfs:      pf.compute('bfs',      from, to),
+    floyd:    pf.compute('floyd',    from, to),
+  };
+
+  return `
+    <table style="width:100%;border-collapse:collapse;font-size:11px;margin-top:8px;">
+      <thead>
+        <tr>
+          <th style="text-align:left;padding:6px 8px;border-bottom:1px solid var(--border);font-family:var(--mono);font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;">Algo</th>
+          <th style="text-align:left;padding:6px 8px;border-bottom:1px solid var(--border);font-family:var(--mono);font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;">Distance</th>
+          <th style="text-align:left;padding:6px 8px;border-bottom:1px solid var(--border);font-family:var(--mono);font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;">Hops</th>
+          <th style="text-align:left;padding:6px 8px;border-bottom:1px solid var(--border);font-family:var(--mono);font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;">Time</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${['dijkstra','bfs','floyd'].map(a => {
+          const r = results[a];
+          const m = ALGO_META[a];
+          const dist = a === 'bfs' ? `${r.distance} hops` : r.distance;
+          return `
+            <tr>
+              <td style="padding:6px 8px;border-bottom:1px solid var(--border);font-family:var(--mono);color:${m.color};">${m.label}</td>
+              <td style="padding:6px 8px;border-bottom:1px solid var(--border);font-family:var(--mono);">${dist >= 1e9 ? '∞' : dist}</td>
+              <td style="padding:6px 8px;border-bottom:1px solid var(--border);font-family:var(--mono);">${r.hops}</td>
+              <td style="padding:6px 8px;border-bottom:1px solid var(--border);font-family:var(--mono);color:var(--muted);">${m.time}</td>
+            </tr>
+          `;
+        }).join('')}
+      </tbody>
+    </table>
+    <div class="muted" style="font-size:10px;margin-top:8px;line-height:1.6;">
+      Dijkstra and Floyd give weighted shortest distance.
+      BFS gives fewest hops (ignores weights).
+    </div>
+  `;
+}
+
+// ── Edge mutations ────────────────────────────────────────────────────────
+async function addEdge() {
+  const u = parseInt(document.getElementById('edge-u').value);
+  const v = parseInt(document.getElementById('edge-v').value);
+  const w = parseInt(document.getElementById('edge-w').value);
+  if (u === v) { toast('U and V must differ', 'error'); return; }
+  const r = await MapApi.addEdge(u, v, w);
+  if (!r.ok) { toast(r.msg, 'error'); return; }
+  toast(`Edge ${u}–${v} (w=${w}) added`, 'success');
+  await loadMap();
+}
+
+async function removeEdge() {
+  const u = parseInt(document.getElementById('edge-u').value);
+  const v = parseInt(document.getElementById('edge-v').value);
+  if (u === v) { toast('U and V must differ', 'error'); return; }
+  const r = await MapApi.removeEdge(u, v);
+  if (!r.ok) { toast(r.msg, 'error'); return; }
+  toast(`Edge ${u}–${v} removed`, 'info');
+  await loadMap();
+}
+
+// ── Prewarm cache ─────────────────────────────────────────────────────────
+async function prewarm() {
+  const r = await Meta.prewarm();
+  const el = document.getElementById('prewarm-result');
+  if (r.ok) {
+    toast(`Cache pre-warmed: ${r.pairs} pairs via ${r.algorithm}`, 'success');
+    el.textContent = `✓ ${r.pairs} pairs cached via ${r.algorithm}`;
+    el.style.color = 'var(--green)';
+  } else {
+    toast(r.msg, 'error');
+  }
+}
+
+// ── Location search ───────────────────────────────────────────────────────
+async function searchLoc() {
+  const q  = document.getElementById('search-q').value.trim();
+  const el = document.getElementById('search-results');
+  if (!q) { el.innerHTML = ''; return; }
+  const r = await MapApi.search(q);
+  if (!r.ok || !r.locations?.length) {
+    el.innerHTML = '<div class="muted" style="font-size:12px;">No results</div>';
+    return;
+  }
+  el.innerHTML = r.locations.map(l =>
+    `<div style="padding:5px 0;border-bottom:1px solid var(--border);font-size:13px;">${l}</div>`
+  ).join('');
+}
+
+// ── Logout ────────────────────────────────────────────────────────────────
+async function doLogout() {
+  await Auth.logout();
+  clearAuth();
+  window.location.href = 'index.html';
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+populateSelects();
+renderAlgoInfo('dijkstra');
+loadMap();
+</script>
+</body>
+</html>

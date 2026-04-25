@@ -1,0 +1,85 @@
+[
+  {
+    "available": true,
+    "earnings": 0.0,
+    "id": 10,
+    "location": 3,
+    "name": "tapi",
+    "ratings": [],
+    "vehicleType": "mini"
+  },
+  {
+    "available": true,
+    "earnings": 0.0,
+    "id": 9,
+    "location": 17,
+    "name": "crocodilo",
+    "ratings": [],
+    "vehicleType": "moto"
+  },
+  {
+    "available": true,
+    "earnings": 0.0,
+    "id": 8,
+    "location": 12,
+    "name": "dill_me_mera_hai_dard_disco",
+    "ratings": [],
+    "vehicleType": "mini"
+  },
+  {
+    "available": true,
+    "earnings": 0.0,
+    "id": 7,
+    "location": 13,
+    "name": "tapu",
+    "ratings": [],
+    "vehicleType": "mini"
+  },
+  {
+    "available": true,
+    "earnings": 0.0,
+    "id": 6,
+    "location": 19,
+    "name": "aman",
+    "ratings": [],
+    "vehicleType": "moto"
+  },
+  {
+    "available": true,
+    "earnings": 0.0,
+    "id": 5,
+    "location": 5,
+    "name": "vikrant",
+    "ratings": [],
+    "vehicleType": "auto"
+  },
+  {
+    "available": true,
+    "earnings": 0.0,
+    "id": 4,
+    "location": 15,
+    "name": "pulkit",
+    "ratings": [],
+    "vehicleType": "sedan"
+  },
+  {
+    "available": true,
+    "earnings": 0.0,
+    "id": 3,
+    "location": 6,
+    "name": "ramesh",
+    "ratings": [],
+    "vehicleType": "mini"
+  },
+  {
+    "available": true,
+    "earnings": 39.0,
+    "id": 2,
+    "location": 5,
+    "name": "rajesh",
+    "ratings": [
+      5
+    ],
+    "vehicleType": "mini"
+  }
+]
